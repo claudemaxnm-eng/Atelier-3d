@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATELIER — 3D Fashion Store</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,700;0,6..96,900;1,6..96,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0a08;
+    --paper:#f3ede1;
+    --ink:#15120d;
+    --accent:#c8462f;
+    --gold:#b89968;
+    --line:rgba(243,237,225,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:var(--bg);color:var(--paper);font-family:"Space Mono",monospace;overflow-x:hidden}
+  body{min-height:100vh}
+
+  /* grain overlay */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---- NAV ---- */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:22px 40px;backdrop-filter:blur(8px);
+    background:linear-gradient(to bottom,rgba(12,10,8,.85),transparent);
+  }
+  .brand{font-family:"Bodoni Moda",serif;font-weight:900;font-size:26px;letter-spacing:6px}
+  .brand span{color:var(--accent)}
+  .nav-links{display:flex;gap:34px;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+  .nav-links a{color:var(--paper);text-decoration:none;opacity:.7;transition:opacity .3s}
+  .nav-links a:hover{opacity:1}
+  .cart-btn{
+    cursor:pointer;border:1px solid var(--line);padding:10px 16px;
+    font-size:12px;letter-spacing:2px;background:none;color:var(--paper);
+    transition:all .3s;text-transform:uppercase
+  }
+  .cart-btn:hover{background:var(--paper);color:var(--ink)}
+
+  /* ---- HERO ---- */
+  .hero{
+    height:100vh;display:flex;align-items:center;position:relative;
+    padding:0 40px;
+  }
+  .hero-text{z-index:5;max-width:620px;mix-blend-mode:difference}
+  .hero-eyebrow{font-size:12px;letter-spacing:5px;color:var(--accent);margin-bottom:24px;text-transform:uppercase;
+    opacity:0;animation:fadeUp .9s .2s forwards}
+  .hero h1{
+    font-family:"Bodoni Moda",serif;font-weight:900;font-size:clamp(54px,9vw,128px);
+    line-height:.92;letter-spacing:-2px;margin-bottom:28px;
+  }
+  .hero h1 .word{display:inline-block;opacity:0;transform:translateY(40px);animation:fadeUp .9s forwards}
+  .hero h1 .word:nth-child(1){animation-delay:.3s}
+  .hero h1 .word:nth-child(2){animation-delay:.45s;font-style:italic;font-weight:500;color:var(--gold)}
+  .hero h1 .word:nth-child(3){animation-delay:.6s}
+  .hero p{font-size:14px;line-height:1.9;max-width:380px;opacity:0;animation:fadeUp .9s .8s forwards}
+  .scroll-cue{position:absolute;bottom:36px;left:40px;font-size:11px;letter-spacing:3px;opacity:.5;
+    animation:pulse 2s infinite;text-transform:uppercase}
+
+  /* canvas behind hero */
+  #bg-canvas{position:fixed;inset:0;z-index:1}
+
+  @keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+  /* ---- SHOP ---- */
+  .shop{position:relative;z-index:5;background:var(--bg);padding:120px 40px;border-top:1px solid var(--line)}
+  .shop-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:70px;flex-wrap:wrap;gap:20px}
+  .shop-head h2{font-family:"Bodoni Moda",serif;font-size:clamp(36px,6vw,72px);font-weight:700;letter-spacing:-1px}
+  .shop-head p{font-size:12px;letter-spacing:2px;opacity:.6;max-width:280px;text-align:right;text-transform:uppercase}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:2px;background:var(--line)}
+  .card{
+    background:var(--bg);padding:0;cursor:pointer;position:relative;overflow:hidden;
+    transition:background .4s
+  }
+  .card:hover{background:#141009}
+  .card-canvas{height:380px;position:relative}
+  .card-canvas canvas{display:block}
+  .drag-hint{position:absolute;top:16px;right:16px;font-size:10px;letter-spacing:2px;opacity:.4;text-transform:uppercase}
+  .card-info{padding:24px 26px 30px;display:flex;justify-content:space-between;align-items:flex-start}
+  .card-info h3{font-family:"Bodoni Moda",serif;font-size:24px;font-weight:700;margin-bottom:6px}
+  .card-info .cat{font-size:11px;letter-spacing:2px;opacity:.5;text-transform:uppercase}
+  .card-info .price{font-size:18px;font-weight:700;color:var(--gold)}
+  .add-btn{
+    width:100%;border:none;border-top:1px solid var(--line);background:none;color:var(--paper);
+    padding:18px;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:3px;cursor:pointer;
+    text-transform:uppercase;transition:all .3s
+  }
+  .add-btn:hover{background:var(--accent);color:#fff}
+
+  /* ---- CART DRAWER ---- */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;opacity:0;pointer-events:none;transition:opacity .4s}
+  .overlay.open{opacity:1;pointer-events:auto}
+  .drawer{
+    position:fixed;top:0;right:0;height:100%;width:min(440px,100%);background:var(--paper);color:var(--ink);
+    z-index:300;transform:translateX(100%);transition:transform .5s cubic-bezier(.7,0,.2,1);
+    display:flex;flex-direction:column;
+  }
+  .drawer.open{transform:translateX(0)}
+  .drawer-head{padding:30px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(0,0,0,.1)}
+  .drawer-head h3{font-family:"Bodoni Moda",serif;font-size:30px;font-weight:900}
+  .drawer-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink)}
+  .cart-items{flex:1;overflow-y:auto;padding:14px 30px}
+  .cart-line{display:flex;justify-content:space-between;align-items:center;padding:20px 0;border-bottom:1px solid rgba(0,0,0,.08)}
+  .cart-line .meta h4{font-family:"Bodoni Moda",serif;font-size:18px}
+  .cart-line .meta span{font-size:11px;letter-spacing:1px;opacity:.6}
+  .qty{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .qty button{width:24px;height:24px;border:1px solid rgba(0,0,0,.2);background:none;cursor:pointer;font-size:14px}
+  .empty{padding:60px 30px;text-align:center;font-size:13px;letter-spacing:1px;opacity:.5}
+  .drawer-foot{padding:30px;border-top:1px solid rgba(0,0,0,.1)}
+  .total-row{display:flex;justify-content:space-between;font-size:14px;letter-spacing:1px;margin-bottom:20px}
+  .total-row strong{font-family:"Bodoni Moda",serif;font-size:22px}
+  .checkout{
+    width:100%;background:var(--ink);color:var(--paper);border:none;padding:20px;
+    font-family:"Space Mono",monospace;font-size:13px;letter-spacing:3px;cursor:pointer;text-transform:uppercase;
+    transition:background .3s
+  }
+  .checkout:hover{background:var(--accent)}
+  .checkout:disabled{opacity:.4;cursor:not-allowed}
+
+  footer{position:relative;z-index:5;background:var(--bg);padding:60px 40px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;font-size:11px;letter-spacing:2px;opacity:.5;text-transform:uppercase;flex-wrap:wrap;gap:14px}
+
+  @media(max-width:680px){
+    nav{padding:18px 20px}.nav-links{display:none}
+    .hero,.shop,footer{padding-left:20px;padding-right:20px}
+    .shop-head p{text-align:left}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">ATEL<span>I</span>ER</div>
+  <div class="nav-links">
+    <a href="#shop">Collection</a>
+    <a href="#shop">Lookbook</a>
+    <a href="#">Studio</a>
+  </div>
+  <button class="cart-btn" id="openCart">Cart (<span id="cartCount">0</span>)</button>
+</nav>
+
+<canvas id="bg-canvas"></canvas>
+
+<section class="hero">
+  <div class="hero-text">
+    <div class="hero-eyebrow">SS26 — Form in Motion</div>
+    <h1><span class="word">Wear</span> <span class="word">the</span> <span class="word">future.</span></h1>
+    <p>A spatial fashion house. Rotate, inspect, and collect each piece in three dimensions before it reaches you.</p>
+  </div>
+  <div class="scroll-cue">Scroll to enter ↓</div>
+</section>
+
+<section class="shop" id="shop">
+  <div class="shop-head">
+    <h2>The Collection</h2>
+    <p>Drag any piece to rotate. Eight garments, rendered live.</p>
+  </div>
+  <div class="grid" id="grid"></div>
+</section>
+
+<footer>
+  <span>© 2026 Atelier Studio</span>
+  <span>Built with Three.js · Deployed on Vercel</span>
+</footer>
+
+<!-- CART -->
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3>Your Bag</h3>
+    <button class="drawer-close" id="closeCart">✕</button>
+  </div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="drawer-foot">
+    <div class="total-row"><span>Total</span><strong id="total">$0</strong></div>
+    <button class="checkout" id="checkout" disabled>Checkout →</button>
+    <p style="font-size:10px;letter-spacing:1px;opacity:.5;margin-top:14px;text-align:center">SECURE PAYMENT VIA STRIPE</p>
+  </div>
+</aside>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ---------- PRODUCT DATA ----------
+   Edit this array to change products. priceCents is what Stripe charges. */
+const PRODUCTS = [
+  { id:'tee-noir',    name:'Noir Tee',       cat:'Tops',      price:'$68',  priceCents:6800,  color:0x1a1a1a, accent:0xc8462f, shape:'tshirt' },
+  { id:'hood-ash',    name:'Ash Hoodie',     cat:'Outerwear', price:'$145', priceCents:14500, color:0x9a9389, accent:0xffffff, shape:'hoodie' },
+  { id:'coat-rust',   name:'Rust Overcoat',  cat:'Outerwear', price:'$320', priceCents:32000, color:0xb05a32, accent:0x2a1a10, shape:'coat'   },
+  { id:'cap-gold',    name:'Gold Cap',       cat:'Accessory', price:'$54',  priceCents:5400,  color:0xb89968, accent:0x15120d, shape:'cap'    },
+  { id:'pant-stone',  name:'Stone Trouser',  cat:'Bottoms',   price:'$128', priceCents:12800, color:0xd8cdb8, accent:0x8a7d63, shape:'pants'  },
+  { id:'tee-clay',    name:'Clay Tee',       cat:'Tops',      price:'$72',  priceCents:7200,  color:0xa8543a, accent:0xf3ede1, shape:'tshirt' },
+  { id:'hood-ink',    name:'Ink Hoodie',     cat:'Outerwear', price:'$152', priceCents:15200, color:0x16213a, accent:0xc8462f, shape:'hoodie' },
+  { id:'cap-noir',    name:'Noir Cap',       cat:'Accessory', price:'$48',  priceCents:4800,  color:0x12100c, accent:0xb89968, shape:'cap'    },
+];
+
+/* ---------- SHARED ---------- */
+const renderers = [];
+
+/* Build a simple stylised 3D garment from primitives (no external models needed) */
+function buildGarment(shape, color, accent){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.1});
+  const acc = new THREE.MeshStandardMaterial({color:accent, roughness:.5, metalness:.2});
+
+  if(shape==='tshirt' || shape==='hoodie' || shape==='coat'){
+    const len = shape==='coat'?2.6:(shape==='hoodie'?1.9:1.6);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.6,len,.5), mat);
+    g.add(body);
+    // sleeves
+    [-1,1].forEach(s=>{
+      const sl = new THREE.Mesh(new THREE.CylinderGeometry(.28,.24,1.1,16), mat);
+      sl.rotation.z = s*Math.PI/2.6; sl.position.set(s*1.05,.55,0);
+      g.add(sl);
+    });
+    // neck / collar
+    const neck = new THREE.Mesh(new THREE.TorusGeometry(.34,.1,12,24), acc);
+    neck.position.y = len/2 - .1; neck.rotation.x = Math.PI/2;
+    g.add(neck);
+    if(shape==='hoodie'){
+      const hood = new THREE.Mesh(new THREE.SphereGeometry(.45,16,16,0,Math.PI*2,0,Math.PI/2), acc);
+      hood.position.y = len/2 + .1; hood.rotation.x = Math.PI; g.add(hood);
+    }
+    if(shape==='coat'){
+      const lapel = new THREE.Mesh(new THREE.BoxGeometry(.2,len*.8,.55), acc);
+      lapel.position.set(-.35,-.1,.02); g.add(lapel);
+      const lapel2 = lapel.clone(); lapel2.position.x = .35; g.add(lapel2);
+    }
+  } else if(shape==='cap'){
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(.9,24,24,0,Math.PI*2,0,Math.PI/2), mat);
+    g.add(dome);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(.95,.95,.08,24,1,false,0,Math.PI), acc);
+    brim.position.set(0,0,.55); brim.rotation.x=0; g.add(brim);
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(.1,12,12), acc);
+    btn.position.y=.9; g.add(btn);
+  } else if(shape==='pants'){
+    [-1,1].forEach(s=>{
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(.6,2.2,.55), mat);
+      leg.position.set(s*.42,-.3,0); g.add(leg);
+    });
+    const waist = new THREE.Mesh(new THREE.BoxGeometry(1.5,.4,.6), acc);
+    waist.position.y=.95; g.add(waist);
+  }
+  g.scale.set(.9,.9,.9);
+  return g;
+}
+
+/* Create an interactive mini 3D viewer inside a card */
+function makeViewer(canvas, product){
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, w/h, .1, 100);
+  camera.position.set(0,0,5.5);
+
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+  renderer.setSize(w,h); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+  scene.add(new THREE.AmbientLight(0xffffff,.6));
+  const key = new THREE.DirectionalLight(0xffffff,1.1); key.position.set(3,4,5); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xc8462f,.5); rim.position.set(-4,2,-3); scene.add(rim);
+
+  const model = buildGarment(product.shape, product.color, product.accent);
+  scene.add(model);
+
+  // interaction state
+  let rotY=0, rotX=0, autoSpin=true, dragging=false, px=0, py=0, vY=.004;
+
+  const onDown=(x,y)=>{dragging=true;autoSpin=false;px=x;py=y;};
+  const onMove=(x,y)=>{ if(!dragging)return; rotY+=(x-px)*.01; rotX+=(y-py)*.01; rotX=Math.max(-.8,Math.min(.8,rotX)); px=x;py=y; };
+  const onUp=()=>{dragging=false;};
+
+  canvas.addEventListener('mousedown',e=>onDown(e.clientX,e.clientY));
+  window.addEventListener('mousemove',e=>onMove(e.clientX,e.clientY));
+  window.addEventListener('mouseup',onUp);
+  canvas.addEventListener('touchstart',e=>{onDown(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+  canvas.addEventListener('touchmove',e=>{onMove(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+  canvas.addEventListener('touchend',onUp);
+
+  function loop(){
+    requestAnimationFrame(loop);
+    if(autoSpin) rotY+=vY;
+    model.rotation.y += (rotY - model.rotation.y)*.1;
+    model.rotation.x += (rotX - model.rotation.x)*.1;
+    renderer.render(scene,camera);
+  }
+  loop();
+  renderers.push(()=>{ // resize handler
+    const nw=canvas.clientWidth,nh=canvas.clientHeight;
+    camera.aspect=nw/nh;camera.updateProjectionMatrix();renderer.setSize(nw,nh);
+  });
+}
+
+/* ---------- BACKGROUND SCENE ---------- */
+function initBackground(){
+  const canvas=document.getElementById('bg-canvas');
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,100);
+  camera.position.z=8;
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+  // floating fabric-like particles
+  const count=900, geo=new THREE.BufferGeometry(), pos=new Float32Array(count*3);
+  for(let i=0;i<count*3;i++) pos[i]=(Math.random()-.5)*22;
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const pmat=new THREE.PointsMaterial({color:0xb89968,size:.04,transparent:true,opacity:.7});
+  const points=new THREE.Points(geo,pmat); scene.add(points);
+
+  const torus=new THREE.Mesh(
+    new THREE.TorusKnotGeometry(2.4,.5,120,16),
+    new THREE.MeshStandardMaterial({color:0xc8462f,roughness:.4,metalness:.3,wireframe:true})
+  );
+  scene.add(torus);
+  scene.add(new THREE.AmbientLight(0xffffff,.5));
+  const dl=new THREE.DirectionalLight(0xffffff,1);dl.position.set(5,5,5);scene.add(dl);
+
+  let mx=0,my=0;
+  window.addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-.5);my=(e.clientY/innerHeight-.5);});
+  const scrollFx=()=>{torus.position.y = window.scrollY*.002;};
+  window.addEventListener('scroll',scrollFx);
+
+  function loop(){
+    requestAnimationFrame(loop);
+    torus.rotation.x+=.002;torus.rotation.y+=.003;
+    points.rotation.y+=.0004;
+    camera.position.x += (mx*2 - camera.position.x)*.04;
+    camera.position.y += (-my*2 - camera.position.y)*.04;
+    camera.lookAt(0,0,0);
+    renderer.render(scene,camera);
+  }
+  loop();
+  window.addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+}
+
+/* ---------- CART ---------- */
+const cart={}; // id -> qty
+const $=id=>document.getElementById(id);
+
+function addToCart(id){
+  cart[id]=(cart[id]||0)+1;
+  renderCart();
+  openDrawer();
+}
+function changeQty(id,d){
+  cart[id]=(cart[id]||0)+d;
+  if(cart[id]<=0) delete cart[id];
+  renderCart();
+}
+function renderCart(){
+  const items=$('cartItems'), count=Object.values(cart).reduce((a,b)=>a+b,0);
+  $('cartCount').textContent=count;
+  let totalCents=0;
+  if(count===0){
+    items.innerHTML='<div class="empty">Your bag is empty.<br>Drag a piece, then add it.</div>';
+    $('checkout').disabled=true;
+  } else {
+    items.innerHTML='';
+    for(const id in cart){
+      const p=PRODUCTS.find(x=>x.id===id); const q=cart[id];
+      totalCents+=p.priceCents*q;
+      const line=document.createElement('div');line.className='cart-line';
+      line.innerHTML=`<div class="meta"><h4>${p.name}</h4><span>${p.cat} · ${p.price}</span>
+        <div class="qty"><button data-d="-1">−</button><span>${q}</span><button data-d="1">+</button></div></div>
+        <strong>$${((p.priceCents*q)/100).toFixed(0)}</strong>`;
+      line.querySelectorAll('button').forEach(b=>b.onclick=()=>changeQty(id,+b.dataset.d));
+      items.appendChild(line);
+    }
+    $('checkout').disabled=false;
+  }
+  $('total').textContent='$'+(totalCents/100).toFixed(0);
+}
+function openDrawer(){$('drawer').classList.add('open');$('overlay').classList.add('open');}
+function closeDrawer(){$('drawer').classList.remove('open');$('overlay').classList.remove('open');}
+
+$('openCart').onclick=openDrawer;
+$('closeCart').onclick=closeDrawer;
+$('overlay').onclick=closeDrawer;
+
+/* ---------- CHECKOUT (Stripe-ready) ----------
+   In Stage 2 this POSTs to /api/checkout (a Vercel function) which creates a
+   Stripe Checkout Session and returns a URL to redirect to. */
+$('checkout').onclick=async()=>{
+  const lineItems=Object.entries(cart).map(([id,qty])=>({id,qty}));
+  try{
+    const res=await fetch('/api/checkout',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items:lineItems})
+    });
+    if(!res.ok) throw new Error('no backend yet');
+    const data=await res.json();
+    window.location.href=data.url; // Stripe-hosted checkout page
+  }catch(err){
+    alert('Checkout backend not connected yet.\n\nThis button is wired and ready — in Stage 2 we add the /api/checkout Vercel function + your Stripe keys, and it will redirect to real payment.');
+  }
+};
+
+/* ---------- BUILD PAGE ---------- */
+function buildGrid(){
+  const grid=$('grid');
+  PRODUCTS.forEach(p=>{
+    const card=document.createElement('div');card.className='card';
+    card.innerHTML=`
+      <div class="card-canvas"><span class="drag-hint">Drag to rotate</span><canvas></canvas></div>
+      <div class="card-info">
+        <div><h3>${p.name}</h3><div class="cat">${p.cat}</div></div>
+        <div class="price">${p.price}</div>
+      </div>
+      <button class="add-btn">Add to Bag</button>`;
+    grid.appendChild(card);
+    const cv=card.querySelector('canvas');
+    cv.style.width='100%';cv.style.height='100%';
+    requestAnimationFrame(()=>makeViewer(cv,p));
+    card.querySelector('.add-btn').onclick=e=>{e.stopPropagation();addToCart(p.id);};
+  });
+}
+
+window.addEventListener('resize',()=>renderers.forEach(fn=>fn()));
+
+initBackground();
+buildGrid();
+renderCart();
+</script>
+</body>
+</html>
