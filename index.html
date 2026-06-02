@@ -83,9 +83,12 @@
     transition:background .4s
   }
   .card:hover{background:#141009}
-  .card-canvas{height:380px;position:relative}
-  .card-canvas canvas{display:block}
-  .drag-hint{position:absolute;top:16px;right:16px;font-size:10px;letter-spacing:2px;opacity:.4;text-transform:uppercase}
+  .card-media{height:420px;position:relative;overflow:hidden;background:#0a0806}
+  .card-media img{width:100%;height:100%;object-fit:cover;display:block;
+    transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+  .card:hover .card-media img{transform:scale(1.05)}
+  .card-media::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(to top,rgba(12,10,8,.55),transparent 45%)}
   .card-info{padding:24px 26px 30px;display:flex;justify-content:space-between;align-items:flex-start}
   .card-info h3{font-family:"Bodoni Moda",serif;font-size:24px;font-weight:700;margin-bottom:6px}
   .card-info .cat{font-size:11px;letter-spacing:2px;opacity:.5;text-transform:uppercase}
@@ -155,7 +158,7 @@
   <div class="hero-text">
     <div class="hero-eyebrow">SS26 — Form in Motion</div>
     <h1><span class="word">Wear</span> <span class="word">the</span> <span class="word">future.</span></h1>
-    <p>A spatial fashion house. Rotate, inspect, and collect each piece in three dimensions before it reaches you.</p>
+    <p>A spatial fashion house. Inspect each piece in studio light, then collect it before it reaches the world.</p>
   </div>
   <div class="scroll-cue">Scroll to enter ↓</div>
 </section>
@@ -163,7 +166,7 @@
 <section class="shop" id="shop">
   <div class="shop-head">
     <h2>The Collection</h2>
-    <p>Drag any piece to rotate. Eight garments, rendered live.</p>
+    <p>Eight garments. Shot in studio light against the dark.</p>
   </div>
   <div class="grid" id="grid"></div>
 </section>
@@ -198,111 +201,15 @@ import * as THREE from 'three';
 /* ---------- PRODUCT DATA ----------
    Edit this array to change products. priceCents is what Stripe charges. */
 const PRODUCTS = [
-  { id:'tee-noir',    name:'Noir Tee',       cat:'Tops',      price:'$68',  priceCents:6800,  color:0x1a1a1a, accent:0xc8462f, shape:'tshirt' },
-  { id:'hood-ash',    name:'Ash Hoodie',     cat:'Outerwear', price:'$145', priceCents:14500, color:0x9a9389, accent:0xffffff, shape:'hoodie' },
-  { id:'coat-rust',   name:'Rust Overcoat',  cat:'Outerwear', price:'$320', priceCents:32000, color:0xb05a32, accent:0x2a1a10, shape:'coat'   },
-  { id:'cap-gold',    name:'Gold Cap',       cat:'Accessory', price:'$54',  priceCents:5400,  color:0xb89968, accent:0x15120d, shape:'cap'    },
-  { id:'pant-stone',  name:'Stone Trouser',  cat:'Bottoms',   price:'$128', priceCents:12800, color:0xd8cdb8, accent:0x8a7d63, shape:'pants'  },
-  { id:'tee-clay',    name:'Clay Tee',       cat:'Tops',      price:'$72',  priceCents:7200,  color:0xa8543a, accent:0xf3ede1, shape:'tshirt' },
-  { id:'hood-ink',    name:'Ink Hoodie',     cat:'Outerwear', price:'$152', priceCents:15200, color:0x16213a, accent:0xc8462f, shape:'hoodie' },
-  { id:'cap-noir',    name:'Noir Cap',       cat:'Accessory', price:'$48',  priceCents:4800,  color:0x12100c, accent:0xb89968, shape:'cap'    },
+  { id:'tee-noir',    name:'Noir Tee',       cat:'Tops',      price:'$68',  priceCents:6800,  img:'images/tee-noir.png'   },
+  { id:'hood-ash',    name:'Ash Hoodie',     cat:'Outerwear', price:'$145', priceCents:14500, img:'images/hood-ash.png'   },
+  { id:'coat-rust',   name:'Rust Overcoat',  cat:'Outerwear', price:'$320', priceCents:32000, img:'images/coat-rust.png'  },
+  { id:'cap-gold',    name:'Gold Cap',       cat:'Accessory', price:'$54',  priceCents:5400,  img:'images/cap-gold.jpg'   },
+  { id:'pant-stone',  name:'Stone Trouser',  cat:'Bottoms',   price:'$128', priceCents:12800, img:'images/pant-stone.jpg' },
+  { id:'tee-clay',    name:'Clay Tee',       cat:'Tops',      price:'$72',  priceCents:7200,  img:'images/tee-clay.jpg'   },
+  { id:'hood-ink',    name:'Ink Hoodie',     cat:'Outerwear', price:'$152', priceCents:15200, img:'images/hood-ink.jpg'   },
+  { id:'cap-noir',    name:'Noir Cap',       cat:'Accessory', price:'$48',  priceCents:4800,  img:'images/cap-noir.jpg'   },
 ];
-
-/* ---------- SHARED ---------- */
-const renderers = [];
-
-/* Build a simple stylised 3D garment from primitives (no external models needed) */
-function buildGarment(shape, color, accent){
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.1});
-  const acc = new THREE.MeshStandardMaterial({color:accent, roughness:.5, metalness:.2});
-
-  if(shape==='tshirt' || shape==='hoodie' || shape==='coat'){
-    const len = shape==='coat'?2.6:(shape==='hoodie'?1.9:1.6);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.6,len,.5), mat);
-    g.add(body);
-    // sleeves
-    [-1,1].forEach(s=>{
-      const sl = new THREE.Mesh(new THREE.CylinderGeometry(.28,.24,1.1,16), mat);
-      sl.rotation.z = s*Math.PI/2.6; sl.position.set(s*1.05,.55,0);
-      g.add(sl);
-    });
-    // neck / collar
-    const neck = new THREE.Mesh(new THREE.TorusGeometry(.34,.1,12,24), acc);
-    neck.position.y = len/2 - .1; neck.rotation.x = Math.PI/2;
-    g.add(neck);
-    if(shape==='hoodie'){
-      const hood = new THREE.Mesh(new THREE.SphereGeometry(.45,16,16,0,Math.PI*2,0,Math.PI/2), acc);
-      hood.position.y = len/2 + .1; hood.rotation.x = Math.PI; g.add(hood);
-    }
-    if(shape==='coat'){
-      const lapel = new THREE.Mesh(new THREE.BoxGeometry(.2,len*.8,.55), acc);
-      lapel.position.set(-.35,-.1,.02); g.add(lapel);
-      const lapel2 = lapel.clone(); lapel2.position.x = .35; g.add(lapel2);
-    }
-  } else if(shape==='cap'){
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(.9,24,24,0,Math.PI*2,0,Math.PI/2), mat);
-    g.add(dome);
-    const brim = new THREE.Mesh(new THREE.CylinderGeometry(.95,.95,.08,24,1,false,0,Math.PI), acc);
-    brim.position.set(0,0,.55); brim.rotation.x=0; g.add(brim);
-    const btn = new THREE.Mesh(new THREE.SphereGeometry(.1,12,12), acc);
-    btn.position.y=.9; g.add(btn);
-  } else if(shape==='pants'){
-    [-1,1].forEach(s=>{
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(.6,2.2,.55), mat);
-      leg.position.set(s*.42,-.3,0); g.add(leg);
-    });
-    const waist = new THREE.Mesh(new THREE.BoxGeometry(1.5,.4,.6), acc);
-    waist.position.y=.95; g.add(waist);
-  }
-  g.scale.set(.9,.9,.9);
-  return g;
-}
-
-/* Create an interactive mini 3D viewer inside a card */
-function makeViewer(canvas, product){
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, w/h, .1, 100);
-  camera.position.set(0,0,5.5);
-
-  const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
-  renderer.setSize(w,h); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-
-  scene.add(new THREE.AmbientLight(0xffffff,.6));
-  const key = new THREE.DirectionalLight(0xffffff,1.1); key.position.set(3,4,5); scene.add(key);
-  const rim = new THREE.DirectionalLight(0xc8462f,.5); rim.position.set(-4,2,-3); scene.add(rim);
-
-  const model = buildGarment(product.shape, product.color, product.accent);
-  scene.add(model);
-
-  // interaction state
-  let rotY=0, rotX=0, autoSpin=true, dragging=false, px=0, py=0, vY=.004;
-
-  const onDown=(x,y)=>{dragging=true;autoSpin=false;px=x;py=y;};
-  const onMove=(x,y)=>{ if(!dragging)return; rotY+=(x-px)*.01; rotX+=(y-py)*.01; rotX=Math.max(-.8,Math.min(.8,rotX)); px=x;py=y; };
-  const onUp=()=>{dragging=false;};
-
-  canvas.addEventListener('mousedown',e=>onDown(e.clientX,e.clientY));
-  window.addEventListener('mousemove',e=>onMove(e.clientX,e.clientY));
-  window.addEventListener('mouseup',onUp);
-  canvas.addEventListener('touchstart',e=>{onDown(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
-  canvas.addEventListener('touchmove',e=>{onMove(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
-  canvas.addEventListener('touchend',onUp);
-
-  function loop(){
-    requestAnimationFrame(loop);
-    if(autoSpin) rotY+=vY;
-    model.rotation.y += (rotY - model.rotation.y)*.1;
-    model.rotation.x += (rotX - model.rotation.x)*.1;
-    renderer.render(scene,camera);
-  }
-  loop();
-  renderers.push(()=>{ // resize handler
-    const nw=canvas.clientWidth,nh=canvas.clientHeight;
-    camera.aspect=nw/nh;camera.updateProjectionMatrix();renderer.setSize(nw,nh);
-  });
-}
 
 /* ---------- BACKGROUND SCENE ---------- */
 function initBackground(){
@@ -417,21 +324,16 @@ function buildGrid(){
   PRODUCTS.forEach(p=>{
     const card=document.createElement('div');card.className='card';
     card.innerHTML=`
-      <div class="card-canvas"><span class="drag-hint">Drag to rotate</span><canvas></canvas></div>
+      <div class="card-media"><img src="${p.img}" alt="${p.name} — ${p.cat}" loading="lazy"></div>
       <div class="card-info">
         <div><h3>${p.name}</h3><div class="cat">${p.cat}</div></div>
         <div class="price">${p.price}</div>
       </div>
       <button class="add-btn">Add to Bag</button>`;
     grid.appendChild(card);
-    const cv=card.querySelector('canvas');
-    cv.style.width='100%';cv.style.height='100%';
-    requestAnimationFrame(()=>makeViewer(cv,p));
     card.querySelector('.add-btn').onclick=e=>{e.stopPropagation();addToCart(p.id);};
   });
 }
-
-window.addEventListener('resize',()=>renderers.forEach(fn=>fn()));
 
 initBackground();
 buildGrid();
