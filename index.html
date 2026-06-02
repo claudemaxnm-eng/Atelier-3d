@@ -275,7 +275,7 @@ function renderCart(){
   $('cartCount').textContent=count;
   let totalCents=0;
   if(count===0){
-    items.innerHTML='<div class="empty">Your bag is empty.<br>Drag a piece, then add it.</div>';
+    items.innerHTML='<div class="empty">Your bag is empty.<br>Pick a piece, then add it.</div>';
     $('checkout').disabled=true;
   } else {
     items.innerHTML='';
